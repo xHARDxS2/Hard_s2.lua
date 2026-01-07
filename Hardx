@@ -1,0 +1,154 @@
+--==================================================
+-- XHARDXS2 HUB | AUTO BRAINROT + AUTO STEAL + TP
+--==================================================
+
+repeat task.wait() until game:IsLoaded()
+
+-- SERVICES
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Player = Players.LocalPlayer
+
+--==================================================
+-- VARIÁVEIS
+--==================================================
+local AUTO_STEAL = false
+local AUTO_TP = false
+local savedBaseCFrame = nil
+local detectedRemotes = {}
+
+--==================================================
+-- DETECTAR REMOTES DO JOGO
+--==================================================
+local function scanRemotes()
+    detectedRemotes = {}
+    for _,obj in ipairs(ReplicatedStorage:GetDescendants()) do
+        if obj:IsA("RemoteEvent") then
+            local n = obj.Name:lower()
+            if n:find("brain") or n:find("steal") or n:find("grab") then
+                table.insert(detectedRemotes, obj)
+            end
+        end
+    end
+end
+
+scanRemotes()
+
+--==================================================
+-- ACHAR BRAINROT PRÓXIMO
+--==================================================
+local function getClosestBrainrot()
+    local char = Player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return nil end
+
+    local closest, dist = nil, math.huge
+
+    for _,obj in ipairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local n = obj.Name:lower()
+            if n:find("brain") or n:find("rot") then
+                local d = (obj.Position - hrp.Position).Magnitude
+                if d < dist then
+                    dist = d
+                    closest = obj
+                end
+            end
+        end
+    end
+
+    return closest
+end
+
+--==================================================
+-- AUTO STEAL (TOUCH + REMOTE)
+--==================================================
+local function stealBrainrot(part)
+    local char = Player.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    -- TOUCH
+    firetouchinterest(hrp, part, 0)
+    task.wait()
+    firetouchinterest(hrp, part, 1)
+
+    -- REMOTES
+    for _,remote in ipairs(detectedRemotes) do
+        pcall(function()
+            remote:FireServer(part)
+        end)
+    end
+
+    -- TELEPORTA UMA VEZ
+    if AUTO_TP and savedBaseCFrame then
+        task.wait(0.15)
+        hrp.CFrame = savedBaseCFrame
+    end
+end
+
+--==================================================
+-- LOOP AUTO STEAL
+--==================================================
+RunService.Heartbeat:Connect(function()
+    if not AUTO_STEAL then return end
+
+    local brainrot = getClosestBrainrot()
+    if brainrot then
+        stealBrainrot(brainrot)
+    end
+end)
+
+--==================================================
+-- UI SIMPLES (PAINEL)
+--==================================================
+local gui = Instance.new("ScreenGui", Player.PlayerGui)
+gui.Name = "XHARDXS2"
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.new(0,260,0,220)
+main.Position = UDim2.new(0,20,0.4,0)
+main.BackgroundColor3 = Color3.fromRGB(25,25,25)
+main.Active = true
+main.Draggable = true
+Instance.new("UICorner", main).CornerRadius = UDim.new(0,12)
+
+local function button(text,y,callback)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(1,-20,0,35)
+    b.Position = UDim2.new(0,10,0,y)
+    b.Text = text
+    b.TextScaled = true
+    b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+    b.TextColor3 = Color3.new(1,1,1)
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+    b.MouseButton1Click:Connect(function()
+        callback(b)
+    end)
+    return b
+end
+
+-- BOTÕES
+button("Salvar Base",15,function()
+    local hrp = Player.Character and Player.Character:FindFirstChild("HumanoidRootPart")
+    if hrp then
+        savedBaseCFrame = hrp.CFrame
+    end
+end)
+
+button("Auto Steal: OFF",60,function(b)
+    AUTO_STEAL = not AUTO_STEAL
+    b.Text = AUTO_STEAL and "Auto Steal: ON" or "Auto Steal: OFF"
+end)
+
+button("Auto TP Após Steal: OFF",105,function(b)
+    AUTO_TP = not AUTO_TP
+    b.Text = AUTO_TP and "Auto TP Após Steal: ON" or "Auto TP Após Steal: OFF"
+end)
+
+button("Re-scan Remotes",150,function()
+    scanRemotes()
+end)
+
+print("✅ XHARDXS2 Auto Brainrot carregado com sucesso")
